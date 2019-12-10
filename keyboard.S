@@ -165,6 +165,26 @@ num:	xorb $2,leds
  *  checking for numeric keypad etc.
  */
 cursor:
+	cmpb $0x4B,%al
+	jne cursor_step1
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	call jn_left
+	popl %edx
+	popl %ecx
+	popl %eax
+cursor_step1:
+	cmpb $0x4D,%al
+	jne cursor_step2
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+	call jn_right
+	popl %edx
+	popl %ecx
+	popl %eax
+cursor_step2:
 	subb $0x47,%al
 	jb 1f
 	cmpb $12,%al

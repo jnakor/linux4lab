@@ -226,9 +226,12 @@ void copy_to_cooked(struct tty_struct * tty)
 	}
 	wake_up(&tty->secondary.proc_list);
 }
-char jn_buffer[1000];
+char jn_buffer[1000]={0};
 char jn_number[]="2017211807-";
 int now_index=0;
+int now_cursor=0;
+int press_left=0;
+int press_right=0;
 extern int jn_flag;
 int judge_open(){
 	int i=0;
@@ -248,9 +251,22 @@ int judge_close(){
 }
 void jn_probs(){
 	//退格处理
+	now_cursor--;
 	now_index--;
 	if(now_index<0)now_index=0;
+	if(now_cursor<0)now_cursor=0;
 }
+void jn_left(){
+	press_left=3;
+	if (now_cursor==0)return;
+	now_cursor--;
+}
+void jn_right(){
+	press_right=3;
+	if(now_cursor==now_index)return;
+	now_cursor++;
+}
+int ct=0;
 int tty_read(unsigned channel, char * buf, int nr)
 {
 	struct tty_struct * tty;
@@ -284,18 +300,19 @@ int tty_read(unsigned channel, char * buf, int nr)
 		}
 		do {
 			GETCH(tty->secondary,c);
-			if(c=='\b'){
-				now_index--;
-				if(now_index<0)now_index=0;
-				
-			}
-			else if(c>31&&c<127){
-				jn_buffer[now_index++]=c;
+			//退格是127
+			if(c==127){
+				if(now_cursor!=now_index){
+					int tp_i;
+					for(tp_i=now_cursor;tp_i<now_index;tp_i++){
+						jn_buffer[tp_i]=jn_buffer[tp_i+1];
+					}
+				}
 				if(!jn_flag){
 					if(now_index>=10){
 						if(judge_open()){
 							jn_flag=1;
-							now_index=0;
+							now_cursor=now_index=0;
 						}
 					}
 				}
@@ -303,13 +320,48 @@ int tty_read(unsigned channel, char * buf, int nr)
 					if(now_index>=11){
 						if(judge_close()){
 							jn_flag=0;
-							now_index=0;
+							now_cursor=now_index=0;
 						}
 					}
 				}
 			}
+			if(c>31&&c<127&&press_left==0&&press_right==0){
+				if(now_index!=now_cursor){
+					int tp_i;
+					for(tp_i=now_index-1;tp_i>=now_cursor;tp_i--){
+						jn_buffer[tp_i+1]=jn_buffer[tp_i];
+					}
+				}
+				jn_buffer[now_cursor++]=c;
+				now_index++;
+				
+				if(!jn_flag){
+					if(now_index>=10){
+						if(judge_open()){
+							jn_flag=1;
+							now_cursor=now_index=0;
+						}
+					}
+				}
+				else{
+					if(now_index>=11){
+						if(judge_close()){
+							jn_flag=0;
+							now_cursor=now_index=0;
+						}
+					}
+				}
+			}
+			else if(press_left||press_right){
+				if(press_left){
+					press_left--;
+				}
+				if(press_right){
+					press_right--;
+				}
+			}
 			else if(c=='\n'){
-				now_index=0;
+				now_cursor=now_index=0;
 			}
 			
 			if (c==EOF_CHAR(tty) || c==10)
